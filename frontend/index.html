@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAG QA App</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="hero">
+        <p class="eyebrow">Retrieval-Augmented Generation</p>
+        <h1>Ask questions across your uploaded documents.</h1>
+        <p class="subtitle">
+          Upload PDF, DOCX, or TXT files, build an index, and get answers with source citations.
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>1. Upload Document</h2>
+          <p id="upload-status" class="status-text">No document uploaded yet.</p>
+        </div>
+        <form id="upload-form" class="stack">
+          <label class="file-picker">
+            <input id="file-input" type="file" accept=".pdf,.docx,.txt" required />
+            <span>Select a document</span>
+            <strong id="selected-file">No file selected</strong>
+          </label>
+          <button id="upload-button" type="submit">Upload and Index</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>2. Ask a Question</h2>
+          <p id="question-status">Responses use your indexed content and show the supporting sources.</p>
+        </div>
+        <form id="ask-form" class="stack">
+          <textarea
+            id="question-input"
+            rows="4"
+            placeholder="What is this document about?"
+            required
+          ></textarea>
+          <div class="action-row">
+            <button id="ask-button" type="submit">Ask</button>
+            <p class="helper-text">Try questions like “Summarize this file” or “What are the key requirements?”</p>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel answer-panel">
+        <div class="panel-header">
+          <h2>Answer</h2>
+          <p id="answer-meta" class="status-text">Waiting for your first question.</p>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card">
+            <span class="stat-label">Indexed Documents</span>
+            <strong id="documents-count">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Stored Chunks</span>
+            <strong id="chunks-count">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Past Questions</span>
+            <strong id="history-count">0</strong>
+          </div>
+        </div>
+        <article id="answer-box" class="answer-box muted">
+          Ask a question after uploading at least one document.
+        </article>
+        <div>
+          <h3>Sources</h3>
+          <ul id="sources-list" class="sources-list empty-list">
+            <li>No sources yet.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="panel history-panel">
+        <div class="panel-header">
+          <h2>Recent Questions</h2>
+          <p id="history-status" class="status-text">Loading history...</p>
+        </div>
+        <div id="history-list" class="history-list">
+          <article class="history-empty">No questions asked yet.</article>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

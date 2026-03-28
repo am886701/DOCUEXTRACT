@@ -1,0 +1,256 @@
+﻿:root {
+  --bg: #f3efe5;
+  --panel: rgba(255, 250, 242, 0.88);
+  --border: rgba(77, 62, 39, 0.14);
+  --text: #241b12;
+  --muted: #6f5d49;
+  --accent: #0c6b58;
+  --accent-dark: #084739;
+  --shadow: 0 20px 45px rgba(47, 33, 14, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top right, rgba(12, 107, 88, 0.16), transparent 28%),
+    linear-gradient(135deg, #ece5d4 0%, #f8f5ee 45%, #efe7d8 100%);
+}
+
+.layout {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 64px;
+  display: grid;
+  gap: 20px;
+}
+
+.hero {
+  padding: 16px 4px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  color: var(--accent-dark);
+  margin-bottom: 12px;
+}
+
+.hero h1 {
+  font-size: clamp(2.2rem, 6vw, 4.5rem);
+  line-height: 0.95;
+  margin: 0;
+  max-width: 12ch;
+}
+
+.subtitle {
+  font-size: 1.05rem;
+  color: var(--muted);
+  max-width: 58ch;
+  margin-top: 18px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+}
+
+.panel-header h2,
+.panel h3 {
+  margin: 0 0 6px;
+}
+
+.panel-header p,
+.muted {
+  color: var(--muted);
+}
+
+.status-text[data-tone="success"] {
+  color: #0f6a3a;
+}
+
+.status-text[data-tone="error"] {
+  color: #a13b2c;
+}
+
+.stack {
+  display: grid;
+  gap: 14px;
+}
+
+.file-picker,
+textarea {
+  width: 100%;
+  border: 1px solid rgba(36, 27, 18, 0.15);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.file-picker {
+  display: grid;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.file-picker input {
+  display: none;
+}
+
+.file-picker span {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.file-picker strong {
+  font-weight: 600;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+button {
+  width: fit-content;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font: inherit;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+  cursor: pointer;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.answer-box {
+  white-space: pre-wrap;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(36, 27, 18, 0.1);
+  padding: 18px;
+  min-height: 160px;
+  margin-bottom: 18px;
+}
+
+.sources-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.empty-list {
+  color: var(--muted);
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.helper-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(36, 27, 18, 0.08);
+}
+
+.stat-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.84rem;
+  margin-bottom: 6px;
+}
+
+.stat-card strong {
+  font-size: 1.4rem;
+}
+
+.history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.history-item {
+  width: 100%;
+  text-align: left;
+  border-radius: 18px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  border: 1px solid rgba(36, 27, 18, 0.08);
+}
+
+.history-question {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.history-meta {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.history-empty {
+  padding: 16px 18px;
+  border-radius: 18px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px dashed rgba(36, 27, 18, 0.14);
+}
+
+@media (max-width: 720px) {
+  .layout {
+    width: min(100% - 20px, 1100px);
+    padding-top: 28px;
+  }
+
+  .panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+}
