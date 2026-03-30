@@ -7,6 +7,9 @@ const uploadStatus = document.getElementById("upload-status");
 const questionStatus = document.getElementById("question-status");
 const answerBox = document.getElementById("answer-box");
 const answerMeta = document.getElementById("answer-meta");
+const reasoningBox = document.getElementById("reasoning-box");
+const summaryBox = document.getElementById("summary-box");
+const workflowList = document.getElementById("workflow-list");
 const sourcesList = document.getElementById("sources-list");
 const uploadButton = document.getElementById("upload-button");
 const askButton = document.getElementById("ask-button");
@@ -26,22 +29,39 @@ function setBusy(button, busyText, isBusy) {
   button.textContent = isBusy ? busyText : button.dataset.defaultLabel;
 }
 
-function renderSources(sources) {
-  sourcesList.innerHTML = "";
-  sourcesList.classList.toggle("empty-list", sources.length === 0);
+function renderTextBox(element, value, emptyMessage) {
+  element.textContent = value && value.trim() ? value : emptyMessage;
+  element.classList.toggle("muted", !(value && value.trim()));
+}
 
-  if (sources.length === 0) {
+function renderSimpleList(element, items, emptyMessage) {
+  element.innerHTML = "";
+  element.classList.toggle("empty-list", items.length === 0);
+
+  if (items.length === 0) {
     const item = document.createElement("li");
-    item.textContent = "No sources yet.";
-    sourcesList.appendChild(item);
+    item.textContent = emptyMessage;
+    element.appendChild(item);
     return;
   }
 
-  sources.forEach((source) => {
+  items.forEach((entry) => {
     const item = document.createElement("li");
-    item.textContent = typeof source === "string" ? source : `${source.document_name} - Page ${source.page}`;
-    sourcesList.appendChild(item);
+    item.textContent = entry;
+    element.appendChild(item);
   });
+}
+
+function renderSources(sources) {
+  renderSimpleList(
+    sourcesList,
+    sources.map((source) => (typeof source === "string" ? source : `${source.document_name} - Page ${source.page}`)),
+    "No sources yet."
+  );
+}
+
+function renderWorkflow(steps) {
+  renderSimpleList(workflowList, steps, "No workflow steps yet.");
 }
 
 function renderHistory(items) {
@@ -62,7 +82,7 @@ function renderHistory(items) {
     entry.className = "history-item";
     entry.innerHTML = `
       <span class="history-question">${item.question}</span>
-      <span class="history-meta">${item.used_gemini ? "Gemini answer" : "Retrieval answer"} • ${item.created_at}</span>
+      <span class="history-meta">${item.used_gemini ? "Gemini answer" : "Fallback answer"} • ${item.created_at}</span>
     `;
     entry.addEventListener("click", () => {
       questionInput.value = item.question;
@@ -70,6 +90,9 @@ function renderHistory(items) {
       answerBox.classList.remove("muted");
       setStatus(answerMeta, `Showing saved answer from history #${item.id}.`, "success");
       setStatus(questionStatus, "Loaded a previous question into the workspace.", "success");
+      renderTextBox(reasoningBox, "History entries from before the LangGraph upgrade may not have saved reasoning.", "The reasoning plan will appear here.");
+      renderTextBox(summaryBox, "History entries from before the LangGraph upgrade may not have saved summaries.", "The evidence summary will appear here.");
+      renderWorkflow(["Loaded a previous answer from stored history."]);
       renderSources(item.sources);
     });
     historyList.appendChild(entry);
@@ -114,7 +137,11 @@ async function refreshHealth() {
     historyCount.textContent = String(payload.database.questions || 0);
     askButton.disabled = documents.length === 0;
     if (documents.length > 0) {
-      setStatus(questionStatus, "Your index is ready for questions.", "success");
+      setStatus(
+        questionStatus,
+        `Your index is ready. Active workflow: ${payload.agentic.framework} using ${payload.agentic.provider}.`,
+        "success"
+      );
     }
   } catch (error) {
     setStatus(questionStatus, "Could not load index status yet.", "error");
@@ -126,6 +153,10 @@ askButton.dataset.defaultLabel = askButton.textContent;
 askButton.disabled = true;
 refreshHealth();
 refreshHistory();
+renderWorkflow([]);
+renderSources([]);
+renderTextBox(reasoningBox, "", "The reasoning plan will appear here.");
+renderTextBox(summaryBox, "", "The evidence summary will appear here.");
 
 fileInput.addEventListener("change", () => {
   const file = fileInput.files[0];
@@ -160,7 +191,7 @@ uploadForm.addEventListener("submit", async (event) => {
     } else {
       setStatus(uploadStatus, `Indexed ${payload.filename} with ${payload.chunks_added} chunks.`, "success");
     }
-    setStatus(questionStatus, "Document indexed. You can ask questions now.", "success");
+    setStatus(questionStatus, "Document indexed. The agentic workflow is ready for questions.", "success");
     fileInput.value = "";
     selectedFile.textContent = "No file selected";
     await refreshHealth();
@@ -179,11 +210,14 @@ askForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  setBusy(askButton, "Thinking...", true);
-  setStatus(questionStatus, "Searching your indexed documents...", "neutral");
-  setStatus(answerMeta, "Searching and generating an answer...", "neutral");
+  setBusy(askButton, "Running agents...", true);
+  setStatus(questionStatus, "Reasoning agent is planning the workflow...", "neutral");
+  setStatus(answerMeta, "Running the LangGraph workflow...", "neutral");
   answerBox.textContent = "Working on it...";
   answerBox.classList.remove("muted");
+  renderTextBox(reasoningBox, "", "The reasoning plan will appear here.");
+  renderTextBox(summaryBox, "", "The evidence summary will appear here.");
+  renderWorkflow(["Workflow started."]);
   renderSources([]);
 
   try {
@@ -200,21 +234,27 @@ askForm.addEventListener("submit", async (event) => {
     setStatus(
       answerMeta,
       payload.used_gemini
-        ? "Gemini generated an answer from indexed content."
-        : "Returned a retrieval-based answer from indexed content.",
+        ? `Gemini completed the agentic workflow using ${payload.provider}.`
+        : `The workflow completed using ${payload.provider}.`,
       "success"
     );
     setStatus(questionStatus, "Ready for another question.", "success");
     answerBox.textContent = payload.answer;
-    renderSources(payload.sources);
+    renderTextBox(reasoningBox, payload.reasoning || "", "The reasoning plan will appear here.");
+    renderTextBox(summaryBox, payload.summary || "", "The evidence summary will appear here.");
+    renderWorkflow(payload.workflow_steps || []);
+    renderSources(payload.sources || []);
     await refreshHealth();
     await refreshHistory();
   } catch (error) {
     setStatus(answerMeta, "Request failed.", "error");
     setStatus(questionStatus, "The question could not be completed.", "error");
     answerBox.textContent = error.message;
+    renderTextBox(reasoningBox, "", "The reasoning plan will appear here.");
+    renderTextBox(summaryBox, "", "The evidence summary will appear here.");
+    renderWorkflow([]);
     renderSources([]);
   } finally {
-    setBusy(askButton, "Thinking...", false);
+    setBusy(askButton, "Running agents...", false);
   }
 });

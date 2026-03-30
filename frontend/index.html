@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RAG QA App</title>
+    <title>Agentic RAG System</title>
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <main class="layout">
       <section class="hero">
-        <p class="eyebrow">Retrieval-Augmented Generation</p>
-        <h1>Ask questions across your uploaded documents.</h1>
+        <p class="eyebrow">LangGraph Agentic RAG</p>
+        <h1>Coordinate retrieval, reasoning, summarization, and response agents.</h1>
         <p class="subtitle">
-          Upload PDF, DOCX, or TXT files, build an index, and get answers with source citations.
+          Upload PDF, DOCX, or TXT files, let multiple agents plan and retrieve evidence, and get grounded answers with workflow traces.
         </p>
       </section>
 
@@ -34,18 +34,18 @@
       <section class="panel">
         <div class="panel-header">
           <h2>2. Ask a Question</h2>
-          <p id="question-status">Responses use your indexed content and show the supporting sources.</p>
+          <p id="question-status">The LangGraph workflow will analyze the query, retrieve evidence, summarize it, and answer with citations.</p>
         </div>
         <form id="ask-form" class="stack">
           <textarea
             id="question-input"
             rows="4"
-            placeholder="What is this document about?"
+            placeholder="What are the key responsibilities in this document?"
             required
           ></textarea>
           <div class="action-row">
-            <button id="ask-button" type="submit">Ask</button>
-            <p class="helper-text">Try questions like “Summarize this file” or “What are the key requirements?”</p>
+            <button id="ask-button" type="submit">Run Agentic Workflow</button>
+            <p class="helper-text">Try questions like “What does this document require?” or “Summarize the role and expectations.”</p>
           </div>
         </form>
       </section>
@@ -53,7 +53,7 @@
       <section class="panel answer-panel">
         <div class="panel-header">
           <h2>Answer</h2>
-          <p id="answer-meta" class="status-text">Waiting for your first question.</p>
+          <p id="answer-meta" class="status-text">Waiting for your first agentic run.</p>
         </div>
         <div class="stats-row">
           <div class="stat-card">
@@ -72,6 +72,22 @@
         <article id="answer-box" class="answer-box muted">
           Ask a question after uploading at least one document.
         </article>
+        <div class="analysis-grid">
+          <div class="analysis-card">
+            <h3>Reasoning Agent</h3>
+            <p id="reasoning-box" class="analysis-box muted">The reasoning plan will appear here.</p>
+          </div>
+          <div class="analysis-card">
+            <h3>Summarization Agent</h3>
+            <p id="summary-box" class="analysis-box muted">The evidence summary will appear here.</p>
+          </div>
+        </div>
+        <div>
+          <h3>Workflow Steps</h3>
+          <ul id="workflow-list" class="sources-list empty-list">
+            <li>No workflow steps yet.</li>
+          </ul>
+        </div>
         <div>
           <h3>Sources</h3>
           <ul id="sources-list" class="sources-list empty-list">

@@ -120,11 +120,11 @@ class RAGPipeline:
 
     def _generate_answer(self, question: str, retrieved_chunks: list[dict[str, Any]]) -> tuple[str, bool]:
         prompt = self._build_prompt(question, retrieved_chunks)
-        if self.settings.gemini_api_key:
+        if self.settings.google_api_key:
             try:
                 from google import genai
 
-                client = genai.Client(api_key=self.settings.gemini_api_key)
+                client = genai.Client(api_key=self.settings.google_api_key)
                 response = client.models.generate_content(
                     model=self.settings.gemini_model,
                     contents=prompt,
@@ -167,15 +167,15 @@ class RAGPipeline:
         snippet = lead["text"][:700].strip()
 
         answer = (
-            "Gemini response is unavailable, so this is a retrieval-only answer.\n\n"
+            "LLM generation is unavailable, so this is a retrieval-only answer.\n\n"
             f"Best matching source: {source}\n"
             f"Question: {question}\n"
             f"Relevant excerpt: {snippet}"
         )
         if error:
-            answer += f"\n\nGemini error: {error}"
-        elif not self.settings.gemini_api_key:
-            answer += "\n\nSet GEMINI_API_KEY in your environment or .env to enable generated answers."
+            answer += f"\n\nModel error: {error}"
+        elif not self.settings.google_api_key:
+            answer += "\n\nSet GOOGLE_API_KEY or GEMINI_API_KEY in your environment or .env to enable the full agentic workflow with Gemini-generated answers."
         return answer
 
     def _build_sources(self, retrieved_chunks: list[dict[str, Any]]) -> list[str]:

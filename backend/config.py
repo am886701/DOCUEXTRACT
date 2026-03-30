@@ -16,8 +16,8 @@ def _get_env(name: str, default: str = "") -> str:
     return value.strip().strip("\"'") if isinstance(value, str) else default
 
 
-def _get_gemini_api_key() -> str:
-    for key_name in ("GEMINI_API_KEY", "GEMINT_API_KEY"):
+def _get_google_api_key() -> str:
+    for key_name in ("GOOGLE_API_KEY", "GEMINI_API_KEY", "GEMINT_API_KEY"):
         value = _get_env(key_name)
         if value:
             return value
@@ -26,8 +26,8 @@ def _get_gemini_api_key() -> str:
 
 @dataclass(slots=True)
 class Settings:
-    app_name: str = "RAG QA App"
-    gemini_api_key: str = _get_gemini_api_key()
+    app_name: str = "Agentic RAG System"
+    google_api_key: str = _get_google_api_key()
     gemini_model: str = _get_env("GEMINI_MODEL", "gemini-2.5-flash")
     upload_dir: Path = BASE_DIR / "uploads"
     vector_store_dir: Path = BASE_DIR / "database"

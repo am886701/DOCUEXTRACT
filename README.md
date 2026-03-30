@@ -1,19 +1,22 @@
-# DOCUEXTRACT
+﻿# DOCUEXTRACT
 
-A document-based Question Answering web app built with a Retrieval-Augmented Generation (RAG) pipeline.
+An Agentic Retrieval-Augmented Generation system built with FastAPI, LangGraph, and multi-agent orchestration.
 
-Users can upload documents, index their contents, and ask questions grounded in the uploaded material. The app retrieves relevant chunks from the document store and uses Gemini to generate answers with source citations.
+The project upgrades a traditional RAG application into an agentic workflow where multiple agents collaborate to analyze the user query, retrieve relevant evidence, summarize findings, and generate a grounded final answer with citations.
 
 ## Features
 
 - Upload `.pdf`, `.docx`, and `.txt` files
-- Extract text from uploaded documents
-- Chunk text for retrieval
-- Generate embeddings for semantic search
-- Store and search vectors with FAISS
-- Ask natural language questions against uploaded content
-- Return answers with citations
-- Fall back to retrieval-only answers if Gemini is unavailable
+- Build a local vector index using FAISS
+- Run a LangGraph-powered multi-agent workflow
+- Reasoning agent for query analysis and response planning
+- Retrieval agent for chunk search and ranking
+- Summarization agent for evidence condensation
+- Response agent for final grounded answer generation
+- Citation-based responses
+- SQLite-backed document metadata and Q&A history
+- Duplicate document detection using file hashing
+- Graceful fallback workflow when no Gemini key is configured
 
 ## Tech Stack
 
@@ -21,9 +24,12 @@ Users can upload documents, index their contents, and ask questions grounded in 
 
 - Python
 - FastAPI
-- Google Gemini API via `google-genai`
+- LangGraph
+- LangChain
+- Gemini API via `langchain-google-genai`
 - FAISS
 - Sentence Transformers
+- SQLite
 
 ### Frontend
 
@@ -31,46 +37,58 @@ Users can upload documents, index their contents, and ask questions grounded in 
 - CSS
 - JavaScript
 
+## Agent Architecture
+
+The LangGraph workflow coordinates four collaborating agents:
+
+1. Retrieval Agent
+   Queries the vector store and gathers the most relevant document chunks.
+2. Reasoning Agent
+   Analyzes the question and decides the retrieval and response strategy.
+3. Summarization Agent
+   Condenses the retrieved evidence into a focused summary.
+4. Response Agent
+   Generates the final answer with grounded citations.
+
+## Workflow
+
+1. User submits a question.
+2. Reasoning agent analyzes intent and retrieval strategy.
+3. Retrieval agent fetches relevant chunks from the vector store.
+4. Summarization agent compresses the evidence.
+5. Response agent produces the final answer.
+6. The system returns the answer, citations, summary, and workflow trace.
+
 ## Project Structure
 
 ```text
 DOCUEXTRACT/
 |-- backend/
+|   |-- agents/
+|   |   |-- reasoning_agent.py
+|   |   |-- response_agent.py
+|   |   |-- retrieval_agent.py
+|   |   `-- summarizer_agent.py
+|   |-- api/
+|   |   `-- routes.py
+|   |-- core/
+|   |   |-- agentic_workflow.py
+|   |   |-- llm_factory.py
+|   |   `-- models.py
 |   |-- app.py
-|   |-- chunking.py
 |   |-- config.py
+|   |-- database.py
 |   |-- document_loader.py
 |   |-- embeddings.py
 |   |-- rag_pipeline.py
 |   `-- vector_store.py
 |-- frontend/
-|   |-- app.js
-|   |-- index.html
-|   `-- styles.css
 |-- uploads/
 |-- database/
 |-- requirements.txt
 |-- .env.example
 `-- README.md
 ```
-
-## How It Works
-
-1. A user uploads a document.
-2. The backend extracts text from the file.
-3. The text is split into chunks.
-4. Chunks are converted into embeddings.
-5. Embeddings and metadata are stored in the vector index.
-6. The user asks a question.
-7. The app retrieves the most relevant chunks.
-8. Gemini generates an answer using the retrieved context.
-9. The UI displays the answer and source citations.
-
-## Supported File Types
-
-- PDF
-- DOCX
-- TXT
 
 ## Setup
 
@@ -96,7 +114,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 4. Create the environment file
+### 4. Configure environment variables
 
 Copy `.env.example` to `.env`:
 
@@ -104,10 +122,10 @@ Copy `.env.example` to `.env`:
 Copy-Item .env.example .env
 ```
 
-Then set your Gemini API key inside `.env`:
+Then set your Gemini API key:
 
 ```env
-GEMINI_API_KEY=your_actual_api_key
+GOOGLE_API_KEY=your_actual_api_key
 GEMINI_MODEL=gemini-2.5-flash
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 CHUNK_SIZE=500
@@ -116,7 +134,7 @@ RETRIEVAL_K=4
 MAX_FILE_SIZE_MB=20
 ```
 
-### 5. Run the app
+## Run
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn backend.app:app --reload
@@ -130,76 +148,41 @@ Open the app at:
 
 ### `GET /health`
 
-Returns service health and current index stats.
+Returns vector store stats, database stats, and agentic workflow metadata.
+
+### `GET /history`
+
+Returns recent stored questions and answers from SQLite.
 
 ### `POST /upload`
 
 Uploads and indexes a supported document.
 
-Request:
-
-- `file`: uploaded `.pdf`, `.docx`, or `.txt`
-
-Example response:
-
-```json
-{
-  "filename": "sample.pdf",
-  "stored_as": "uuid_sample.pdf",
-  "chunks_added": 6,
-  "stats": {
-    "chunks": 6,
-    "documents": ["sample.pdf"]
-  }
-}
-```
-
 ### `POST /ask`
 
-Asks a question against the indexed documents.
+Runs the LangGraph agentic workflow and returns:
 
-Request:
-
-```json
-{
-  "question": "What is this document about?"
-}
-```
-
-Example response:
-
-```json
-{
-  "answer": "This document discusses ...",
-  "sources": [
-    "sample.pdf - Page 2",
-    "sample.pdf - Page 4"
-  ]
-}
-```
-
-## Current Behavior
-
-- If Gemini is configured correctly, the app returns generated answers grounded in retrieved context.
-- If Gemini is unavailable or the API key is missing, the app falls back to retrieval-only answers.
-- Source labels display the original uploaded filename instead of the internal stored filename.
+- final answer
+- citations
+- reasoning plan
+- summary
+- workflow steps
+- provider information
 
 ## Notes
 
-- `uploads/` stores uploaded files locally.
-- `database/` stores vector data and metadata locally.
-- The first run can take longer because the embedding model may need to initialize.
-- Some transformer model warnings during startup can be harmless as long as the app finishes startup successfully.
+- If `GOOGLE_API_KEY` is missing, the system still works with heuristic/fallback behavior.
+- SQLite stores document metadata and question history in `database/app.db`.
+- FAISS remains the retrieval engine for vector search.
+- Scanned PDFs without extractable text are rejected with a clearer OCR-style message.
 
-## Future Improvements
+## Resume Value
 
-- Chat history
-- Multi-document session management
-- Better duplicate-file handling
-- Scanned PDF OCR support
-- Deployment configuration
-- UI polish and loading states
+This project demonstrates:
 
-## License
-
-This project is currently intended for educational and internship project use.
+- agentic AI architecture
+- LangGraph orchestration
+- multi-agent reasoning pipelines
+- retrieval-augmented generation
+- production-oriented API and data modeling
+- AI system design for GenAI engineering roles
