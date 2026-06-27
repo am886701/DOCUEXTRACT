@@ -1,14 +1,20 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 
+logger = logging.getLogger(__name__)
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env", override=True, encoding="utf-8-sig")
+# Runtime environment variables (including ECS-injected secrets) take priority
+# over local development values from .env.
+load_dotenv(BASE_DIR / ".env", override=False, encoding="utf-8-sig")
 
 
 def _get_env(name: str, default: str = "") -> str:
@@ -37,9 +43,21 @@ class Settings:
     chunk_overlap: int = int(_get_env("CHUNK_OVERLAP", "50"))
     retrieval_k: int = int(_get_env("RETRIEVAL_K", "4"))
     max_file_size_mb: int = int(_get_env("MAX_FILE_SIZE_MB", "20"))
-
+    allowed_origins: list[str] = field(default_factory=lambda: [
+        origin.strip()
+        for origin in _get_env("ALLOWED_ORIGINS", "http://localhost:8000").split(",")
+        if origin.strip()
+    ])
+    app_api_key: str = _get_env("APP_API_KEY", "dev-secret-key")
 
 settings = Settings()
 
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
 settings.vector_store_dir.mkdir(parents=True, exist_ok=True)
+
+if not settings.google_api_key:
+    logger.warning(
+        "No GOOGLE_API_KEY found. The app will run in fallback mode "
+        "(heuristic answers without Gemini). Set GOOGLE_API_KEY or "
+        "GEMINI_API_KEY in the environment or .env file."
+    )

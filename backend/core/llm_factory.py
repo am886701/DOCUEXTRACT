@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import logging
 from typing import Any
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -7,12 +8,17 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from backend.config import Settings
 
 
+logger = logging.getLogger(__name__)
+
+
 class LLMFactory:
     @staticmethod
     def build_chat_model(settings: Settings) -> ChatGoogleGenerativeAI | None:
         if not settings.google_api_key:
+            logger.info("Gemini client disabled: no API key configured")
             return None
 
+        logger.info("Configuring Gemini chat model: model=%s", settings.gemini_model)
         return ChatGoogleGenerativeAI(
             model=settings.gemini_model,
             google_api_key=settings.google_api_key,

@@ -1,7 +1,12 @@
 ﻿from __future__ import annotations
 
+import logging
+
 from backend.core.models import AgenticRAGState
 from backend.rag_pipeline import RAGPipeline
+
+
+logger = logging.getLogger(__name__)
 
 
 class RetrievalAgent:
@@ -11,6 +16,7 @@ class RetrievalAgent:
     def run(self, state: AgenticRAGState) -> AgenticRAGState:
         retrieval_query = state.get("retrieval_query") or state["question"]
         retrieved_chunks = self.pipeline.retrieve(retrieval_query)
+        logger.info("Retrieval agent fetched chunks: count=%d", len(retrieved_chunks))
         workflow_steps = [*state.get("workflow_steps", []), f"Retrieval agent fetched {len(retrieved_chunks)} chunk(s)."]
 
         return {

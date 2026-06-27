@@ -1,9 +1,13 @@
 ﻿from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass
 
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingBackend:
@@ -45,6 +49,9 @@ class HashEmbeddingBackend(EmbeddingBackend):
 
 def build_embedding_backend(model_name: str) -> EmbeddingBackend:
     try:
-        return SentenceTransformerBackend(model_name=model_name)
+        backend = SentenceTransformerBackend(model_name=model_name)
+        logger.info("Embedding model loaded: model=%s", model_name)
+        return backend
     except Exception:
+        logger.warning("SentenceTransformer failed to load; using hash embeddings", exc_info=True)
         return HashEmbeddingBackend()

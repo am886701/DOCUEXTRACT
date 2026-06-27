@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from langgraph.graph import END, START, StateGraph
 
 from backend.agents.reasoning_agent import ReasoningAgent
@@ -12,6 +14,9 @@ from backend.core.models import AgenticRAGState
 from backend.rag_pipeline import RAGPipeline, supported_file_types
 
 
+logger = logging.getLogger(__name__)
+
+
 class AgenticRAGService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -22,6 +27,10 @@ class AgenticRAGService:
         self.summarizer_agent = SummarizerAgent(self.chat_model, self.pipeline)
         self.response_agent = ResponseAgent(self.chat_model, self.pipeline)
         self.graph = self._build_graph()
+        logger.info(
+            "Agentic RAG service initialized: provider=%s",
+            "gemini" if self.chat_model is not None else "heuristic-fallback",
+        )
 
     def ingest_file(self, source_path, filename: str) -> dict[str, object]:
         return self.pipeline.ingest_file(source_path, filename)
@@ -47,6 +56,7 @@ class AgenticRAGService:
             used_gemini=used_gemini,
             sources=retrieved_chunks,
         )
+        logger.info("Agentic workflow complete: question_id=%d, used_gemini=%s", question_id, used_gemini)
         return {
             "question_id": question_id,
             "answer": answer,

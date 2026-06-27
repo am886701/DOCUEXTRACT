@@ -1,7 +1,11 @@
 ﻿from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
+
+
+logger = logging.getLogger(__name__)
 
 
 class UnsupportedFileTypeError(ValueError):
@@ -15,6 +19,7 @@ class EmptyDocumentError(ValueError):
 def load_document(file_path: Path, display_name: str | None = None) -> list[dict[str, Any]]:
     display_name = display_name or file_path.name
     suffix = file_path.suffix.lower()
+    logger.info("Loading document: filename=%s, type=%s", display_name, suffix)
     if suffix == ".txt":
         return _load_txt(file_path, display_name)
     if suffix == ".pdf":

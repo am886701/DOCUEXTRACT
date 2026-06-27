@@ -1,11 +1,15 @@
 ﻿from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -23,6 +27,7 @@ class VectorStore:
         self._index_path = self.storage_dir / "faiss.index"
         self._matrix_path = self.storage_dir / "embeddings.npy"
         self._load()
+        logger.info("Vector store loaded: chunks=%d, path=%s", len(self.texts), self.storage_dir)
 
     def add(self, texts: list[str], embeddings: np.ndarray, metadatas: list[dict[str, Any]]) -> None:
         if len(texts) != len(metadatas) or len(texts) != len(embeddings):
@@ -42,6 +47,7 @@ class VectorStore:
 
         self._rebuild_index()
         self._persist()
+        logger.info("Vector store updated: chunks_added=%d, chunks_total=%d", len(texts), len(self.texts))
 
     def search(self, query_embedding: np.ndarray, top_k: int) -> list[dict[str, Any]]:
         if self._matrix is None or not self.texts:
@@ -122,4 +128,5 @@ class VectorStore:
             index.add(self._matrix)
             self._faiss_index = index
         except Exception:
+            logger.warning("FAISS index rebuild failed; using brute-force search", exc_info=True)
             self._faiss_index = None

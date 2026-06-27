@@ -7,6 +7,9 @@ from typing import Any
 from backend.core.llm_factory import extract_text
 from backend.core.models import AgenticRAGState
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class ReasoningAgent:
     def __init__(self, llm: Any | None) -> None:
@@ -37,8 +40,9 @@ class ReasoningAgent:
                     "workflow_steps": workflow_steps,
                     "provider": "gemini",
                 }
-        except Exception as exc:
-            errors = [*state.get("errors", []), f"Reasoning agent fallback: {exc}"]
+        except Exception:
+            logger.exception("Reasoning agent failed to analyze the query")
+            errors = [*state.get("errors", []), "Reasoning agent fallback: analysis failed."]
             fallback = self._fallback(question, workflow_steps, provider="heuristic-fallback")
             fallback["errors"] = errors
             return fallback

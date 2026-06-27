@@ -1,4 +1,4 @@
-﻿const uploadForm = document.getElementById("upload-form");
+const uploadForm = document.getElementById("upload-form");
 const askForm = document.getElementById("ask-form");
 const fileInput = document.getElementById("file-input");
 const selectedFile = document.getElementById("selected-file");
@@ -18,6 +18,9 @@ const chunksCount = document.getElementById("chunks-count");
 const historyCount = document.getElementById("history-count");
 const historyStatus = document.getElementById("history-status");
 const historyList = document.getElementById("history-list");
+
+const API_KEY = "dev-secret-key"; // In production, this would be injected by your server or login flow
+const defaultHeaders = { "X-API-Key": API_KEY };
 
 function setStatus(element, message, tone = "neutral") {
   element.textContent = message;
@@ -80,10 +83,14 @@ function renderHistory(items) {
     const entry = document.createElement("button");
     entry.type = "button";
     entry.className = "history-item";
-    entry.innerHTML = `
-      <span class="history-question">${item.question}</span>
-      <span class="history-meta">${item.used_gemini ? "Gemini answer" : "Fallback answer"} • ${item.created_at}</span>
-    `;
+    const questionSpan = document.createElement("span");
+    questionSpan.className = "history-question";
+    questionSpan.textContent = item.question;
+    const metaSpan = document.createElement("span");
+    metaSpan.className = "history-meta";
+    metaSpan.textContent = `${item.used_gemini ? "Gemini answer" : "Fallback answer"} • ${item.created_at}`;
+    entry.appendChild(questionSpan);
+    entry.appendChild(metaSpan);
     entry.addEventListener("click", () => {
       questionInput.value = item.question;
       answerBox.textContent = item.answer;
@@ -109,7 +116,7 @@ async function readJsonResponse(response) {
 
 async function refreshHistory() {
   try {
-    const response = await fetch("/history");
+    const response = await fetch("/history", { headers: defaultHeaders });
     const payload = await readJsonResponse(response);
     if (!response.ok) {
       throw new Error(payload.detail || "Could not load history.");
@@ -179,6 +186,7 @@ uploadForm.addEventListener("submit", async (event) => {
   try {
     const response = await fetch("/upload", {
       method: "POST",
+      headers: defaultHeaders,
       body: formData,
     });
     const payload = await readJsonResponse(response);
@@ -223,7 +231,7 @@ askForm.addEventListener("submit", async (event) => {
   try {
     const response = await fetch("/ask", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...defaultHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ question }),
     });
     const payload = await readJsonResponse(response);

@@ -1,9 +1,14 @@
 ﻿from __future__ import annotations
 
+import logging
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -25,7 +30,7 @@ class AppDatabase:
         chunk_count: int,
         content_hash: str,
     ) -> int:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             cursor = connection.execute(
                 """
                 INSERT OR IGNORE INTO documents (
@@ -52,7 +57,7 @@ class AppDatabase:
             return int(row[0])
 
     def find_document_by_hash(self, content_hash: str) -> dict[str, Any] | None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 """
                 SELECT id, original_name, stored_name, source_type, file_size_bytes, chunk_count, created_at
@@ -82,7 +87,7 @@ class AppDatabase:
         used_gemini: bool,
         sources: list[dict[str, Any]],
     ) -> int:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO questions (
@@ -131,7 +136,7 @@ class AppDatabase:
             return question_id
 
     def get_recent_questions(self, limit: int = 12) -> list[dict[str, Any]]:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             rows = connection.execute(
                 """
                 SELECT id, question, answer, used_gemini, created_at
@@ -174,7 +179,7 @@ class AppDatabase:
         return history
 
     def stats(self) -> dict[str, int]:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             documents_count = int(connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0])
             questions_count = int(connection.execute("SELECT COUNT(*) FROM questions").fetchone()[0])
             source_rows_count = int(connection.execute("SELECT COUNT(*) FROM question_sources").fetchone()[0])
@@ -185,12 +190,14 @@ class AppDatabase:
         }
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.db_path)
+        connection = sqlite3.connect(self.db_path, timeout=30)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA busy_timeout=5000")
         return connection
 
     def _initialize(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS documents (
@@ -226,8 +233,10 @@ class AppDatabase:
             )
             connection.commit()
 
+        logger.info("Database initialized: path=%s, journal_mode=WAL", self.db_path)
+
     def _migrate(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             columns = {str(row[1]) for row in connection.execute("PRAGMA table_info(documents)").fetchall()}
             if "content_hash" not in columns:
                 connection.execute("ALTER TABLE documents ADD COLUMN content_hash TEXT NOT NULL DEFAULT ''")

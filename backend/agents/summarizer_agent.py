@@ -6,6 +6,9 @@ from backend.core.llm_factory import extract_text
 from backend.core.models import AgenticRAGState
 from backend.rag_pipeline import RAGPipeline
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class SummarizerAgent:
     def __init__(self, llm: Any | None, pipeline: RAGPipeline) -> None:
@@ -38,8 +41,9 @@ class SummarizerAgent:
         try:
             response = self.llm.invoke(prompt)
             summary = extract_text(response) or self._fallback_summary(retrieved_chunks)
-        except Exception as exc:
-            errors = [*state.get("errors", []), f"Summarizer agent fallback: {exc}"]
+        except Exception:
+            logger.exception("Summarizer agent failed to condense evidence")
+            errors = [*state.get("errors", []), "Summarizer agent fallback: generation failed."]
             return {
                 "summary": self._fallback_summary(retrieved_chunks),
                 "workflow_steps": workflow_steps,

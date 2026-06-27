@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import shutil
 from dataclasses import dataclass
@@ -14,6 +15,8 @@ from backend.database import AppDatabase
 from backend.document_loader import EmptyDocumentError, load_document
 from backend.embeddings import build_embedding_backend
 from backend.vector_store import VectorStore
+
+logger = logging.getLogger(__name__)
 
 
 UUID_PREFIX_PATTERN = re.compile(r"^[0-9a-f]{32}_(.+)$")
@@ -30,9 +33,11 @@ class RAGPipeline:
         self._sync_existing_documents()
 
     def ingest_file(self, source_path: Path, filename: str) -> dict[str, Any]:
+        logger.info("Document ingestion started: filename=%s", filename)
         content_hash = self._hash_file(source_path)
         existing_document = self.app_database.find_document_by_hash(content_hash)
         if existing_document is not None:
+            logger.info("Duplicate document reused: filename=%s", filename)
             return {
                 "document_id": existing_document["id"],
                 "filename": existing_document["original_name"],
@@ -71,9 +76,11 @@ class RAGPipeline:
                 content_hash=content_hash,
             )
         except Exception:
+            logger.exception("Document ingestion failed: filename=%s", filename)
             destination.unlink(missing_ok=True)
             raise
 
+        logger.info("Document ingestion complete: filename=%s, chunks=%d", filename, len(chunks))
         return {
             "document_id": document_id,
             "filename": filename,
@@ -116,7 +123,9 @@ class RAGPipeline:
 
     def retrieve(self, question: str) -> list[dict[str, Any]]:
         query_embedding = self.embedding_backend.encode([question])[0]
-        return self.vector_store.search(query_embedding, self.settings.retrieval_k)
+        results = self.vector_store.search(query_embedding, self.settings.retrieval_k)
+        logger.info("Retrieval complete: results=%d", len(results))
+        return results
 
     def _generate_answer(self, question: str, retrieved_chunks: list[dict[str, Any]]) -> tuple[str, bool]:
         prompt = self._build_prompt(question, retrieved_chunks)
@@ -132,8 +141,9 @@ class RAGPipeline:
                 text = (response.text or "").strip()
                 if text:
                     return text, True
-            except Exception as exc:
-                return self._fallback_answer(question, retrieved_chunks, error=str(exc)), False
+            except Exception:
+                logger.exception("Failed to generate answer with Gemini")
+                return self._fallback_answer(question, retrieved_chunks, error="Generation failed. Please try again later."), False
 
         return self._fallback_answer(question, retrieved_chunks), False
 

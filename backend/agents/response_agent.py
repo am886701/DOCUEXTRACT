@@ -6,6 +6,9 @@ from backend.core.llm_factory import extract_text
 from backend.core.models import AgenticRAGState
 from backend.rag_pipeline import RAGPipeline
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class ResponseAgent:
     def __init__(self, llm: Any | None, pipeline: RAGPipeline) -> None:
@@ -50,10 +53,11 @@ class ResponseAgent:
                 "used_gemini": True,
                 "workflow_steps": workflow_steps,
             }
-        except Exception as exc:
-            errors = [*state.get("errors", []), f"Response agent fallback: {exc}"]
+        except Exception:
+            logger.exception("Response agent failed to generate an answer")
+            errors = [*state.get("errors", []), "Response agent fallback: generation failed."]
             return {
-                "answer": self.pipeline._fallback_answer(state["question"], retrieved_chunks, error=str(exc)),
+                "answer": self.pipeline._fallback_answer(state["question"], retrieved_chunks, error="Generation failed."),
                 "used_gemini": False,
                 "workflow_steps": workflow_steps,
                 "errors": errors,
