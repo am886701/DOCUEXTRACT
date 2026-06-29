@@ -31,6 +31,7 @@ class RAGPipeline:
         self.embedding_backend = build_embedding_backend(self.settings.embedding_model)
         self.app_database = AppDatabase(self.settings.sqlite_db_path)
         self._sync_existing_documents()
+        self._sweep_stale_uploads()
 
     def ingest_file(self, source_path: Path, filename: str) -> dict[str, Any]:
         logger.info("Document ingestion started: filename=%s", filename)
@@ -79,6 +80,11 @@ class RAGPipeline:
             logger.exception("Document ingestion failed: filename=%s", filename)
             destination.unlink(missing_ok=True)
             raise
+
+        # Immediate cleanup: delete the raw upload file right after indexing
+        # when UPLOAD_RETENTION_DAYS=0. The vector index + DB record are the
+        # source of truth; the raw file is only needed for re-extraction.
+        self._cleanup_upload_file(destination)
 
         logger.info("Document ingestion complete: filename=%s, chunks=%d", filename, len(chunks))
         return {
@@ -132,11 +138,22 @@ class RAGPipeline:
         if self.settings.google_api_key:
             try:
                 from google import genai
+                from google.genai import types
 
-                client = genai.Client(api_key=self.settings.google_api_key)
+                # Pass timeout in milliseconds via HttpOptions so hung calls
+                # don't block a Gunicorn worker past the configurable limit.
+                client = genai.Client(
+                    api_key=self.settings.google_api_key,
+                    http_options=types.HttpOptions(
+                        timeout=self.settings.llm_timeout_seconds * 1000,
+                    ),
+                )
                 response = client.models.generate_content(
                     model=self.settings.gemini_model,
                     contents=prompt,
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=4096,
+                    ),
                 )
                 text = (response.text or "").strip()
                 if text:
@@ -234,6 +251,38 @@ class RAGPipeline:
 
         for document in grouped_documents.values():
             self.app_database.log_document(**document)
+
+    def _cleanup_upload_file(self, file_path: Path) -> None:
+        """Delete a single upload file if immediate cleanup is configured."""
+        if self.settings.upload_retention_days == 0 and file_path.exists():
+            try:
+                file_path.unlink()
+                logger.info("Upload file deleted after indexing: path=%s", file_path.name)
+            except OSError:
+                logger.warning("Could not delete upload file: path=%s", file_path.name, exc_info=True)
+
+    def _sweep_stale_uploads(self) -> None:
+        """Delete upload files older than upload_retention_days on startup."""
+        days = self.settings.upload_retention_days
+        if days <= 0:
+            return  # -1 = keep forever; 0 = handled per-file in ingest_file
+
+        import time
+
+        cutoff = time.time() - days * 86400
+        upload_dir = self.settings.upload_dir
+        deleted = 0
+        for file_path in upload_dir.iterdir():
+            if not file_path.is_file():
+                continue
+            try:
+                if file_path.stat().st_mtime < cutoff:
+                    file_path.unlink()
+                    deleted += 1
+            except OSError:
+                logger.warning("Could not delete stale upload: path=%s", file_path.name, exc_info=True)
+        if deleted:
+            logger.info("Upload sweep complete: deleted=%d files older than %d days", deleted, days)
 
     def _hash_file(self, file_path: Path) -> str:
         digest = hashlib.sha256()

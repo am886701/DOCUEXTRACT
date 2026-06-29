@@ -66,7 +66,7 @@ async def upload_document(request: Request, file: UploadFile = File(...)) -> dic
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         logger.exception("Upload failed: filename=%s", file.filename)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="An internal error occurred during upload. Please try again.") from exc
     finally:
         temp_path.unlink(missing_ok=True)
 

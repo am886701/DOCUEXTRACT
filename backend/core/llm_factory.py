@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import logging
 from typing import Any
@@ -18,12 +18,18 @@ class LLMFactory:
             logger.info("Gemini client disabled: no API key configured")
             return None
 
-        logger.info("Configuring Gemini chat model: model=%s", settings.gemini_model)
+        logger.info(
+            "Configuring Gemini chat model: model=%s, timeout=%ds",
+            settings.gemini_model,
+            settings.llm_timeout_seconds,
+        )
         return ChatGoogleGenerativeAI(
             model=settings.gemini_model,
             google_api_key=settings.google_api_key,
             temperature=0.2,
             max_retries=2,
+            timeout=settings.llm_timeout_seconds,
+            max_output_tokens=4096,
         )
 
 

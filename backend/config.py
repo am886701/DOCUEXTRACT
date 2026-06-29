@@ -49,6 +49,13 @@ class Settings:
         if origin.strip()
     ])
     app_api_key: str = _get_env("APP_API_KEY", "dev-secret-key")
+    llm_timeout_seconds: int = int(_get_env("LLM_TIMEOUT_SECONDS", "60"))
+    # How long to keep raw uploaded files in uploads/.
+    # -1 = keep forever (default; safe for development and single-node).
+    #  0 = delete immediately after successful indexing (saves disk, no recovery possible).
+    # >0 = delete files older than this many days (swept on each app startup).
+    upload_retention_days: int = int(_get_env("UPLOAD_RETENTION_DAYS", "-1"))
+    graceful_timeout_seconds: int = int(_get_env("GRACEFUL_TIMEOUT_SECONDS", "30"))
 
 settings = Settings()
 
