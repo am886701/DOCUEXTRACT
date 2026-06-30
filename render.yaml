@@ -18,9 +18,4 @@ services:
       - key: ALLOWED_ORIGINS
         value: "https://docuextract.onrender.com" # Replace this with your actual Render URL later
         
-    # We must mount a persistent disk for SQLite and FAISS data.
-    # The default storage directory is `/app/database`.
-    disk:
-      name: docuextract-db
-      mountPath: /app/database
-      sizeGB: 1
+ 
