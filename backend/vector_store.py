@@ -1,7 +1,10 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -22,6 +25,7 @@ class VectorStore:
     _faiss_index: Any = None
 
     def __post_init__(self) -> None:
+        self._lock = threading.Lock()
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self._metadata_path = self.storage_dir / "store.json"
         self._index_path = self.storage_dir / "faiss.index"
@@ -36,17 +40,21 @@ class VectorStore:
             return
 
         embeddings = np.asarray(embeddings, dtype="float32")
-        self.embedding_dim = embeddings.shape[1]
-        self.texts.extend(texts)
-        self.metadatas.extend(metadatas)
+        with self._lock:
+            self.embedding_dim = embeddings.shape[1]
+            self.texts.extend(texts)
+            self.metadatas.extend(metadatas)
 
-        if self._matrix is None:
-            self._matrix = embeddings
-        else:
-            self._matrix = np.vstack([self._matrix, embeddings]).astype("float32")
+            if self._matrix is None:
+                self._matrix = embeddings
+            else:
+                self._matrix = np.vstack([self._matrix, embeddings]).astype("float32")
 
-        self._rebuild_index()
-        self._persist()
+            # P4.1 — Incremental FAISS add: if the index already exists and has
+            # the right dimension, add only the new vectors instead of discarding
+            # the whole index and rebuilding it from all vectors every time.
+            self._add_to_index(embeddings)
+            self._persist()
         logger.info("Vector store updated: chunks_added=%d, chunks_total=%d", len(texts), len(self.texts))
 
     def search(self, query_embedding: np.ndarray, top_k: int) -> list[dict[str, Any]]:
@@ -97,36 +105,121 @@ class VectorStore:
             self._matrix = None
 
         if self._matrix is not None:
-            self._rebuild_index(load_only=True)
+            self._load_index()
 
-    def _persist(self) -> None:
-        payload = {
-            "texts": self.texts,
-            "metadatas": self.metadatas,
-            "embedding_dim": self.embedding_dim,
-        }
-        self._metadata_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        if self._matrix is not None:
-            np.save(self._matrix_path, self._matrix)
-        if self._faiss_index is not None:
+    # ------------------------------------------------------------------
+    # P4.1 — Incremental FAISS index management
+    # ------------------------------------------------------------------
+
+    def _load_index(self) -> None:
+        """Load a persisted FAISS index from disk on startup."""
+        try:
             import faiss
 
-            faiss.write_index(self._faiss_index, str(self._index_path))
+            if self._index_path.exists():
+                self._faiss_index = faiss.read_index(str(self._index_path))
+                logger.info("FAISS index loaded from disk: vectors=%d", self._faiss_index.ntotal)
+            else:
+                # No saved index — build one from the full matrix (first boot / migration)
+                self._rebuild_index_from_matrix()
+        except Exception:
+            logger.warning("FAISS index load failed; using brute-force search", exc_info=True)
+            self._faiss_index = None
 
-    def _rebuild_index(self, load_only: bool = False) -> None:
+    def _add_to_index(self, new_embeddings: np.ndarray) -> None:
+        """Incrementally add new vectors to the existing FAISS index.
+
+        If no FAISS index exists yet (e.g. faiss is unavailable, or first add),
+        falls back to a full rebuild from the complete matrix.
+        """
+        try:
+            import faiss
+
+            if self._faiss_index is not None:
+                # Happy path: just add the new vectors — O(n_new) not O(n_total)
+                self._faiss_index.add(new_embeddings)
+            else:
+                # First add or previous failure — build from scratch
+                self._rebuild_index_from_matrix()
+        except Exception:
+            logger.warning("FAISS incremental add failed; rebuilding from matrix", exc_info=True)
+            self._rebuild_index_from_matrix()
+
+    def _rebuild_index_from_matrix(self) -> None:
+        """Full index rebuild from self._matrix — used on first boot or recovery."""
         if self._matrix is None:
             self._faiss_index = None
             return
         try:
             import faiss
 
-            if load_only and self._index_path.exists():
-                self._faiss_index = faiss.read_index(str(self._index_path))
-                return
-
             index = faiss.IndexFlatIP(self._matrix.shape[1])
             index.add(self._matrix)
             self._faiss_index = index
+            logger.info("FAISS index rebuilt from matrix: vectors=%d", index.ntotal)
         except Exception:
             logger.warning("FAISS index rebuild failed; using brute-force search", exc_info=True)
             self._faiss_index = None
+
+    # ------------------------------------------------------------------
+    # P4.2 — Atomic persistence (temp-file + os.replace)
+    # ------------------------------------------------------------------
+
+    def _persist(self) -> None:
+        """Write all store data atomically so a mid-write crash cannot corrupt files.
+
+        Strategy:
+        - Write to a sibling temp file in the same directory (same filesystem,
+          so os.replace is guaranteed to be atomic on Linux/POSIX).
+        - Rename over the target once the write completes successfully.
+        - On failure the temp file is removed and the original is left intact.
+        """
+        storage_dir = str(self.storage_dir)
+
+        # 1. Atomic JSON metadata write
+        payload = {
+            "texts": self.texts,
+            "metadatas": self.metadatas,
+            "embedding_dim": self.embedding_dim,
+        }
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=storage_dir, suffix=".tmp")
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh, indent=2)
+            os.replace(tmp_path, str(self._metadata_path))
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+
+        # 2. Atomic numpy matrix write
+        if self._matrix is not None:
+            tmp_fd2, tmp_npy = tempfile.mkstemp(dir=storage_dir, suffix=".tmp.npy")
+            try:
+                os.close(tmp_fd2)
+                np.save(tmp_npy, self._matrix)
+                os.replace(tmp_npy, str(self._matrix_path))
+            except Exception:
+                try:
+                    os.unlink(tmp_npy)
+                except OSError:
+                    pass
+                raise
+
+        # 3. Atomic FAISS index write
+        if self._faiss_index is not None:
+            import faiss
+
+            tmp_fd3, tmp_idx = tempfile.mkstemp(dir=storage_dir, suffix=".tmp.index")
+            try:
+                os.close(tmp_fd3)
+                faiss.write_index(self._faiss_index, tmp_idx)
+                os.replace(tmp_idx, str(self._index_path))
+            except Exception:
+                try:
+                    os.unlink(tmp_idx)
+                except OSError:
+                    pass
+                raise

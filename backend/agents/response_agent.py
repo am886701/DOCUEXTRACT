@@ -27,7 +27,7 @@ class ResponseAgent:
             }
 
         if self.llm is None:
-            answer = self.pipeline._fallback_answer(state["question"], retrieved_chunks)
+            answer = self.pipeline.fallback_answer(state["question"], retrieved_chunks)
             return {
                 "answer": answer,
                 "used_gemini": False,
@@ -47,7 +47,7 @@ class ResponseAgent:
         )
         try:
             response = self.llm.invoke(prompt)
-            answer = extract_text(response) or self.pipeline._fallback_answer(state["question"], retrieved_chunks)
+            answer = extract_text(response) or self.pipeline.fallback_answer(state["question"], retrieved_chunks)
             return {
                 "answer": answer,
                 "used_gemini": True,
@@ -57,7 +57,7 @@ class ResponseAgent:
             logger.exception("Response agent failed to generate an answer")
             errors = [*state.get("errors", []), "Response agent fallback: generation failed."]
             return {
-                "answer": self.pipeline._fallback_answer(state["question"], retrieved_chunks, error="Generation failed."),
+                "answer": self.pipeline.fallback_answer(state["question"], retrieved_chunks, error="Generation failed."),
                 "used_gemini": False,
                 "workflow_steps": workflow_steps,
                 "errors": errors,
@@ -68,6 +68,6 @@ class ResponseAgent:
         parts: list[str] = []
         for chunk in chunks:
             metadata = chunk["metadata"]
-            source = f"{self.pipeline._display_document_name(metadata)} (page {metadata.get('page', 1)})"
+            source = f"{self.pipeline.display_document_name(metadata)} (page {metadata.get('page', 1)})"
             parts.append(f"Source: {source}\nContent: {chunk['text']}")
         return "\n\n".join(parts)

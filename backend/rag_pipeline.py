@@ -96,92 +96,13 @@ class RAGPipeline:
             "duplicate": False,
         }
 
-    def answer_question(self, question: str) -> dict[str, Any]:
-        question = question.strip()
-        if not question:
-            raise ValueError("Question cannot be empty.")
-
-        results = self.retrieve(question)
-        if not results:
-            answer = "I could not find any indexed content yet. Upload a document first."
-            self.app_database.log_question(question=question, answer=answer, used_gemini=False, sources=[])
-            return {
-                "answer": answer,
-                "sources": [],
-                "context": [],
-            }
-
-        answer, used_gemini = self._generate_answer(question, results)
-        sources = self._build_sources(results)
-        question_id = self.app_database.log_question(
-            question=question,
-            answer=answer,
-            used_gemini=used_gemini,
-            sources=results,
-        )
-        return {
-            "question_id": question_id,
-            "answer": answer,
-            "sources": sources,
-            "context": results,
-            "used_gemini": used_gemini,
-        }
-
     def retrieve(self, question: str) -> list[dict[str, Any]]:
         query_embedding = self.embedding_backend.encode([question])[0]
         results = self.vector_store.search(query_embedding, self.settings.retrieval_k)
         logger.info("Retrieval complete: results=%d", len(results))
         return results
 
-    def _generate_answer(self, question: str, retrieved_chunks: list[dict[str, Any]]) -> tuple[str, bool]:
-        prompt = self._build_prompt(question, retrieved_chunks)
-        if self.settings.google_api_key:
-            try:
-                from google import genai
-                from google.genai import types
-
-                # Pass timeout in milliseconds via HttpOptions so hung calls
-                # don't block a Gunicorn worker past the configurable limit.
-                client = genai.Client(
-                    api_key=self.settings.google_api_key,
-                    http_options=types.HttpOptions(
-                        timeout=self.settings.llm_timeout_seconds * 1000,
-                    ),
-                )
-                response = client.models.generate_content(
-                    model=self.settings.gemini_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        max_output_tokens=4096,
-                    ),
-                )
-                text = (response.text or "").strip()
-                if text:
-                    return text, True
-            except Exception:
-                logger.exception("Failed to generate answer with Gemini")
-                return self._fallback_answer(question, retrieved_chunks, error="Generation failed. Please try again later."), False
-
-        return self._fallback_answer(question, retrieved_chunks), False
-
-    def _build_prompt(self, question: str, retrieved_chunks: list[dict[str, Any]]) -> str:
-        context_parts: list[str] = []
-        for chunk in retrieved_chunks:
-            metadata = chunk["metadata"]
-            source = f'{self._display_document_name(metadata)} (page {metadata.get("page", 1)})'
-            context_parts.append(f"Source: {source}\nContent: {chunk['text']}")
-
-        context = "\n\n".join(context_parts)
-        return (
-            "You are a helpful RAG question answering assistant.\n"
-            "Answer the question only using the provided context.\n"
-            "If the answer is not supported by the context, say so clearly.\n"
-            "Cite supporting sources inline using the source names exactly as provided.\n\n"
-            f"Context:\n{context}\n\n"
-            f"Question: {question}"
-        )
-
-    def _fallback_answer(
+    def fallback_answer(
         self,
         question: str,
         retrieved_chunks: list[dict[str, Any]],
@@ -190,7 +111,7 @@ class RAGPipeline:
     ) -> str:
         lead = retrieved_chunks[0]
         metadata = lead["metadata"]
-        source = f'{self._display_document_name(metadata)} (page {metadata.get("page", 1)})'
+        source = f'{self.display_document_name(metadata)} (page {metadata.get("page", 1)})'
         snippet = lead["text"][:700].strip()
 
         answer = (
@@ -205,18 +126,18 @@ class RAGPipeline:
             answer += "\n\nSet GOOGLE_API_KEY or GEMINI_API_KEY in your environment or .env to enable the full agentic workflow with Gemini-generated answers."
         return answer
 
-    def _build_sources(self, retrieved_chunks: list[dict[str, Any]]) -> list[str]:
+    def build_sources(self, retrieved_chunks: list[dict[str, Any]]) -> list[str]:
         seen: set[str] = set()
         sources: list[str] = []
         for chunk in retrieved_chunks:
             metadata = chunk["metadata"]
-            label = f'{self._display_document_name(metadata)} - Page {metadata.get("page", 1)}'
+            label = f'{self.display_document_name(metadata)} - Page {metadata.get("page", 1)}'
             if label not in seen:
                 seen.add(label)
                 sources.append(label)
         return sources
 
-    def _display_document_name(self, metadata: dict[str, Any]) -> str:
+    def display_document_name(self, metadata: dict[str, Any]) -> str:
         display_name = str(metadata.get("display_document") or "").strip()
         if display_name:
             return display_name
@@ -236,7 +157,7 @@ class RAGPipeline:
 
             file_path = self.settings.upload_dir / stored_name
             grouped_documents[stored_name] = {
-                "original_name": self._display_document_name(metadata),
+                "original_name": self.display_document_name(metadata),
                 "stored_name": stored_name,
                 "source_type": str(metadata.get("source_type") or file_path.suffix.lower().lstrip(".")),
                 "file_size_bytes": file_path.stat().st_size if file_path.exists() else 0,

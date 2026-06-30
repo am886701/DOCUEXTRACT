@@ -4,12 +4,13 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.logging_config import setup_logging
 
@@ -46,7 +47,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """P5.1 — Attach standard security headers to every HTTP response.
+
+    These headers defend against common browser-level attacks:
+    - CSP: restricts which scripts/styles the browser will execute
+    - X-Frame-Options: prevents clickjacking via <iframe>
+    - X-Content-Type-Options: stops MIME-type sniffing
+    - Referrer-Policy: limits information leaked in the Referer header
+    - X-XSS-Protection: legacy XSS filter for older browsers
+    """
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'"
+        )
+        return response
+
+
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,

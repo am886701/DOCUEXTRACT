@@ -59,7 +59,7 @@ class SummarizerAgent:
         parts: list[str] = []
         for chunk in chunks:
             metadata = chunk["metadata"]
-            source = f"{self.pipeline._display_document_name(metadata)} (page {metadata.get('page', 1)})"
+            source = f"{self.pipeline.display_document_name(metadata)} (page {metadata.get('page', 1)})"
             parts.append(f"Source: {source}\nContent: {chunk['text']}")
         return "\n\n".join(parts)
 

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import logging
 
@@ -21,6 +21,6 @@ class RetrievalAgent:
 
         return {
             "retrieved_chunks": retrieved_chunks,
-            "sources": self.pipeline._build_sources(retrieved_chunks),
+            "sources": self.pipeline.build_sources(retrieved_chunks),
             "workflow_steps": workflow_steps,
         }

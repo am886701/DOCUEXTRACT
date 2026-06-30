@@ -1800,7 +1800,7 @@ class DocumentStorage:
 
 ## Summary Checklist
 
-> **Last audit:** 2026-06-29 | **Completed: 17 of 31 tasks (55%)** | **All P0 + P1 + P2: ✅ Done**
+> **Last audit:** 2026-06-30 | **Completed: 27 of 31 tasks (87%)** | **All P0–P4 + P5 (excl. P5.4): ✅ Done**
 
 | # | Task | Priority | Status | Effort | Files Affected |
 |---|------|----------|--------|--------|----------------|
@@ -1820,19 +1820,19 @@ class DocumentStorage:
 | P2.3 | Upload file cleanup | 🟡 Important | ✅ Done | 30 min | rag_pipeline.py, config.py |
 | P2.4 | LLM request timeout | 🟡 Important | ✅ Done | 15 min | llm_factory.py, rag_pipeline.py, config.py |
 | P2.5 | Production docker-compose | 🟡 Important | ✅ Done | 15 min | docker-compose.yml |
-| P3.1 | Thread-safety locks | 🔵 Moderate | ❌ Todo | 30 min | vector_store.py, database.py |
+| P3.1 | Thread-safety locks | 🔵 Moderate | ✅ Done | 30 min | vector_store.py, database.py |
 | P3.2 | Log bare except blocks | 🔵 Moderate | ✅ Done | 20 min | vector_store.py, embeddings.py, rag_pipeline.py |
-| P3.3 | Fix private method access | 🔵 Moderate | ❌ Todo | 20 min | rag_pipeline.py, all agents |
+| P3.3 | Fix private method access | 🔵 Moderate | ✅ Done | 20 min | rag_pipeline.py, all agents |
 | P3.4 | Add test suite | 🔵 Moderate | ❌ Todo | 3 hr | NEW tests/ directory |
-| P3.5 | Remove `venv/` from repo | 🔵 Moderate | ❌ Todo | 5 min | .gitignore |
-| P4.1 | Incremental FAISS add | 🟣 Low | ❌ Todo | 20 min | vector_store.py |
-| P4.2 | Atomic file writes | 🟣 Low | ❌ Todo | 20 min | vector_store.py |
-| P4.3 | Shared embedding model | 🟣 Low | ❌ Todo | 2 hr+ | Architecture change |
-| P5.1 | Security headers (CSP) | ⚪ Enhancement | ❌ Todo | 15 min | app.py |
-| P5.2 | Favicon + meta tags | ⚪ Enhancement | ❌ Todo | 10 min | index.html |
-| P5.3 | Fix `.dockerignore` for `venv/` | ⚪ Enhancement | ❌ Todo | 2 min | .dockerignore |
-| P5.4 | Pin deps with hashes | ⚪ Enhancement | ❌ Todo | 15 min | requirements.txt |
-| P5.5 | Remove dual Gemini client | ⚪ Enhancement | ❌ Todo | 30 min | rag_pipeline.py |
+| P3.5 | Remove `venv/` from repo | 🔵 Moderate | ✅ Done | 5 min | .gitignore |
+| P4.1 | Incremental FAISS add | 🟣 Low | ✅ Done | 20 min | vector_store.py |
+| P4.2 | Atomic file writes | 🟣 Low | ✅ Done | 20 min | vector_store.py |
+| P4.3 | Shared embedding model | 🟣 Low | ⏭️ Deferred (by design) | 2 hr+ | Architecture change |
+| P5.1 | Security headers (CSP) | ⚪ Enhancement | ✅ Done | 15 min | app.py |
+| P5.2 | Favicon + meta tags | ⚪ Enhancement | ✅ Done | 10 min | index.html, frontend/favicon.svg |
+| P5.3 | Fix `.dockerignore` for `venv/` | ⚪ Enhancement | ✅ Done | 2 min | .dockerignore |
+| P5.4 | Pin deps with hashes | ⚪ Enhancement | ⏭️ Deferred (needs pip-tools) | 15 min | requirements.txt |
+| P5.5 | Remove dual Gemini client | ⚪ Enhancement | ✅ Done | 30 min | rag_pipeline.py |
 | P6.1 | ECS task definition | 🪨 Hardening | ❌ Todo | 1 hr | NEW infrastructure/ |
 | P6.2 | ALB health check config | 🪨 Hardening | ❌ Todo | 15 min | Infrastructure |
 | P6.3 | CloudWatch alarms | 🪨 Hardening | ❌ Todo | 30 min | Infrastructure |

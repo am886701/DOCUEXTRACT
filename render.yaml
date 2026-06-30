@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: docuextract
+    env: docker
+    plan: starter  # Starter plan is required for Persistent Disks
+    region: oregon # Choose your preferred region
+    branch: main
+    
+    # We expose port 8000 (same as the EXPOSE port in the Dockerfile)
+    # Render automatically handles SSL (HTTPS) termination and routing.
+    envVars:
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GOOGLE_API_KEY
+        sync: false # You will paste your secret API key in the Render dashboard
+      - key: APP_API_KEY
+        sync: false # Set a custom secret API key to protect your endpoints
+      - key: ALLOWED_ORIGINS
+        value: "https://docuextract.onrender.com" # Replace this with your actual Render URL later
+        
+    # We must mount a persistent disk for SQLite and FAISS data.
+    # The default storage directory is `/app/database`.
+    disk:
+      name: docuextract-db
+      mountPath: /app/database
+      sizeGB: 1

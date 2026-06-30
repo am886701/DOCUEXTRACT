@@ -1,7 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import logging
 import sqlite3
+import threading
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +17,7 @@ class AppDatabase:
     db_path: Path
 
     def __post_init__(self) -> None:
+        self._lock = threading.Lock()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
         self._migrate()
@@ -30,7 +32,7 @@ class AppDatabase:
         chunk_count: int,
         content_hash: str,
     ) -> int:
-        with closing(self._connect()) as connection:
+        with self._lock, closing(self._connect()) as connection:
             cursor = connection.execute(
                 """
                 INSERT OR IGNORE INTO documents (
@@ -87,7 +89,7 @@ class AppDatabase:
         used_gemini: bool,
         sources: list[dict[str, Any]],
     ) -> int:
-        with closing(self._connect()) as connection:
+        with self._lock, closing(self._connect()) as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO questions (
