@@ -2,7 +2,7 @@ services:
   - type: web
     name: docuextract
     env: docker
-    plan: starter  # Starter plan is required for Persistent Disks
+    plan: free
     region: oregon # Choose your preferred region
     branch: main
     
